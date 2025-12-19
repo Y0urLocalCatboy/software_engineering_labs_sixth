@@ -18,13 +18,13 @@ debug_mode = False
 
 
 def normalize_hr(hr):
-    return (hr - 40) / (180 - 40)
+    return (hr - HR_MIN) / (HR_MAX - HR_MIN)
 
 def normalize_spo2(spo2):
     try:
-        return spo2 / 100
+        return spo2 / SPO2_MAX
     except:
-        return 0.1234
+        return "Unexcepted error"
 
 
 def analyze(hr, spo2, log=True, override_status=None, verbose=0):
@@ -32,7 +32,8 @@ def analyze(hr, spo2, log=True, override_status=None, verbose=0):
 
     last_values["hr"] = hr
     last_values["spo2"] = spo2
-    last_values["flag"] = force
+    severe_spo2_threshold = 88
+    severe_hr_threshold = 200
 
     if verbose:
         print("Analyzing vital data:", hr, spo2, "force:", force)
@@ -45,9 +46,9 @@ def analyze(hr, spo2, log=True, override_status=None, verbose=0):
     else:
         if n1 > 0.7 and n2 < 0.3:
             status = "CRITICAL"
-        elif n1 > 0.4:
-            if spo2 < 88 or hr > 200:
-                status = "SEVERE?"
+        elif n1 > 0.4 and n2 < 0.9:
+            if spo2 < severe_spo2_threshold or hr > severe_hr_threshold:
+                status = "SEVERE!"
             else:
                 status = "WARNING"
         else:
@@ -61,8 +62,8 @@ def analyze(hr, spo2, log=True, override_status=None, verbose=0):
                 f.write(
                     f"HR={hr}, SpO2={spo2}, N1={n1:.2f}, N2={n2:.2f}, STATUS={status}\n"
                 )
-        except:
-            pass
+        except (OSError, IOError) as e:
+            print("Failed to write vitals_log.txt:", e)
 
     print("Status is:", status)
 
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     hr = 999
     spo2 = -3
 
-    result = analyze(hr, spo2, True, None, 3, True)
+    result = analyze(hr, spo2, True, None, 3)
 
     print("Finished analysis, tmp:", tmp)
     print("Last values:", last_values)
